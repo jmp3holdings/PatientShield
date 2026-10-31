@@ -158,9 +158,9 @@ export default async function handler(req, res) {
       ];
     }
     const aiStatus = isPortalUpload ? 'skipped_portal_upload' : (aiErrorLog ? 'failed' : 'completed');
-
+    const portalToken = crypto.randomUUID();
     const leadId = Date.now().toString();
-    const securePortalUrl = `https://www.thepatientshield.com/portal.html?id=${leadId}`;
+    const securePortalUrl = `https://www.thepatientshield.com/portal.html?id=${leadId}&t=${portalToken}`;
 
     let missingHtml = '';
     if (missingInfoRequests.length > 0) {
@@ -175,6 +175,7 @@ export default async function handler(req, res) {
     // outcomes are then written back onto the lead record.
     const leadData = {
       id: leadId,
+      portalToken,
       fullName: actualPatientName,
       clientEmail,
       phone,
@@ -204,6 +205,11 @@ export default async function handler(req, res) {
       return res.status(502).json({ status: 'error', message: "We couldn't save your submission — please try again" });
     }
     try {
+      const portalLeadRes = isPortalUpload ? await fetch(redisUrl, { method: 'POST', headers: { Authorization: 'Bearer ' + redisToken, 'Content-Type': 'application/json' }, body: JSON.stringify(['GET', 'lead:' + body.leadId])}) : null;
+      const portalLeadJson = portalLeadRes ? await portalLeadRes.json().catch(() => ({})) : {};
+      let portalLead = null;
+      try { portalLead = portalLeadJson.result ? JSON.parse(portalLeadJson.result) : null; } catch (e) {}
+      if (isPortalUpload && (!body.leadId || !body.portalToken || !portalLead || portalLead.portalToken !== body.portalToken)) { return res.status(401).json({ status: 'error', message: 'Invalid portal token.' }); }
       const setRes = await fetch(redisUrl, { method: 'POST', headers: { 'Authorization': `Bearer ${redisToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(['SET', `lead:${leadId}`, JSON.stringify(leadData)]) });
       const setJson = await setRes.json().catch(() => ({}));
       if (!setRes.ok || setJson.error || setJson.result !== 'OK') throw new Error('Redis SET failed: ' + JSON.stringify(setJson));
