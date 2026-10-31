@@ -116,15 +116,31 @@
             statusMsg.textContent = 'Extracting bill text, scanning CPT codes, and analyzing line items...';
             statusMsg.className = 'text-center text-sm font-semibold text-blue-600 mt-4';
 
+            const showFormError = (message) => {
+                statusMsg.textContent = message;
+                statusMsg.className = 'text-center text-sm font-semibold text-red-600 mt-4';
+            };
+
             try {
-                const fullName = document.getElementById('fullName').value;
-                const email = document.getElementById('email').value;
-                const phone = document.getElementById('phone').value;
-                const hospitalName = document.getElementById('hospitalName').value;
+                const fullName = document.getElementById('fullName').value.trim();
+                const email = document.getElementById('email').value.trim();
+                const phone = document.getElementById('phone').value.trim();
+                const hospitalName = document.getElementById('hospitalName').value.trim();
                 
                 const billFileInput = document.getElementById('billFile');
                 const eobFileInput = document.getElementById('eobFile');
                 const recordsFileInput = document.getElementById('recordsFile');
+
+                if (!fullName) { showFormError('Full name is required.'); return; }
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showFormError('A valid email address is required.'); return; }
+                if (!phone) { showFormError('Phone number is required.'); return; }
+                if (!hospitalName) { showFormError('Hospital / facility name is required.'); return; }
+                if (!billFileInput || !billFileInput.files[0]) { showFormError('An itemized bill file is required.'); return; }
+                const billFile = billFileInput.files[0];
+                const billLowerName = billFile.name.toLowerCase();
+                const billTypeOk = billFile.type.startsWith('image/') || billFile.type === 'application/pdf' || billFile.type === 'text/plain' || billLowerName.endsWith('.pdf') || billLowerName.endsWith('.png') || billLowerName.endsWith('.jpg') || billLowerName.endsWith('.jpeg') || billLowerName.endsWith('.gif') || billLowerName.endsWith('.webp') || billLowerName.endsWith('.txt');
+                if (!billTypeOk) { showFormError('Itemized bill must be a PDF, image, or text file.'); return; }
+                if (billFile.size > 10 * 1024 * 1024) { showFormError('Itemized bill file must be 10 MB or smaller.'); return; }
 
                 let fileData = null;
                 let fileText = '';
@@ -140,6 +156,8 @@
                     if (file.type === 'application/pdf' || fileName.toLowerCase().endsWith('.pdf')) {
                         statusMsg.textContent = 'Reading PDF text contents...';
                         fileText = await extractPdfText(file);
+                    } else if (file.type === 'text/plain' || fileName.toLowerCase().endsWith('.txt')) {
+                        fileText = await file.text();
                     }
                 }
                 if (eobFileInput && eobFileInput.files[0]) {
@@ -156,7 +174,7 @@
                     hospitalName,
                     fileName,
                     fileData,
-                    fileText, // Pass extracted PDF text directly to backend
+                    fileText,
                     eobName,
                     recordsName
                 };
@@ -174,7 +192,7 @@
                     statusMsg.className = 'text-center text-sm font-semibold text-green-600 mt-4';
                     document.getElementById('intakeForm').reset();
                 } else {
-                    statusMsg.textContent = result.message || 'Error processing document. Please try again.';
+                    statusMsg.textContent = "We couldn't save your submission — please try again" + (response.status === 400 && result.message ? ' ' + result.message : '');
                     statusMsg.className = 'text-center text-sm font-semibold text-red-600 mt-4';
                 }
             } catch (err) {
