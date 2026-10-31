@@ -39,18 +39,19 @@
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const leadId = urlParams.get('id');
+        const portalToken = urlParams.get('t');
 
         async function fetchLeadDetails() {
-            if (!leadId) {
+            if (!leadId || !portalToken) {
                 document.getElementById('loadingState').textContent = 'Invalid or missing secure portal link.';
                 return;
             }
 
             try {
-                const res = await fetch('/api/get-leads');
+                const res = await fetch('/api/portal-lookup?id=' + encodeURIComponent(leadId) + '&t=' + encodeURIComponent(portalToken));
                 const data = await res.json();
-                if (data.status === 'success' && data.leads) {
-                    const lead = data.leads.find(l => l.id === leadId);
+                if (data.status === 'success' && data.lead) {
+                    const lead = data.lead;
                     if (lead) {
                         document.getElementById('facilityLabel').textContent = lead.hospitalName;
                         document.getElementById('totalLabel').textContent = lead.extractedBillAmount || '$0.00';
@@ -97,6 +98,7 @@
                     body: JSON.stringify({
                         isPortalUpload: true,
                         leadId: leadId,
+                        portalToken: portalToken,
                         fileName: file.name,
                         fileData: fileData,
                         eobName: file.name
