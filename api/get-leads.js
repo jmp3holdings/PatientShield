@@ -2,6 +2,18 @@ export default async function handler(req, res) {
   res.setHeader('Content-Type', 'application/json');
 
   try {
+    // Gate this endpoint: the caller must send the admin password as an
+    // Authorization header. Fail closed when ADMIN_PASSWORD is unset.
+    const adminPass = process.env.ADMIN_PASSWORD;
+    if (!adminPass) {
+      return res.status(500).json({ status: 'error', message: 'Admin password is not configured.' });
+    }
+    const authHeader = req.headers.authorization || '';
+    const provided = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
+    if (!provided || provided !== adminPass) {
+      return res.status(401).json({ status: 'error', message: 'Unauthorized.' });
+    }
+
     const redisUrl = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || process.env.REDIS_URL;
     const redisToken = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
 
