@@ -19,7 +19,7 @@
         </form>
 
         <div class="mt-4 text-center">
-            <button type="button" onclick="forgotPassword()" class="text-xs text-blue-600 hover:underline font-semibold cursor-pointer">Forgot Password? Email it to Admin Inbox</button>
+            <button type="button" onclick="forgotPassword()" class="text-xs text-blue-600 hover:underline font-semibold cursor-pointer">Forgot Password? The owner resets it in the Vercel environment settings</button>
         </div>
         <p id="msg" class="text-xs text-center mt-3 text-slate-500"></p>
     </div>
@@ -40,6 +40,10 @@
     </div>
 
     <script>
+        function adminAuthHeaders() {
+            return { 'Authorization': 'Bearer ' + (sessionStorage.getItem('adminPassword') || '') };
+        }
+
         document.getElementById('loginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const password = document.getElementById('adminPassword').value;
@@ -58,6 +62,7 @@
                 const data = await res.json();
 
                 if (data.status === 'success') {
+                    sessionStorage.setItem('adminPassword', password);
                     document.getElementById('loginScreen').style.display = 'none';
                     const dash = document.getElementById('dashboard');
                     dash.style.display = 'block';
@@ -75,24 +80,10 @@
             }
         });
 
-        async function forgotPassword() {
+        function forgotPassword() {
             const msg = document.getElementById('msg');
-            msg.textContent = 'Sending password to admin email...';
-            msg.className = 'text-xs text-center mt-3 text-blue-600 font-semibold';
-
-            try {
-                const res = await fetch('/api/admin-login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'forgot' })
-                });
-                const data = await res.json();
-                msg.textContent = data.message || 'Password sent!';
-                msg.className = 'text-xs text-center mt-3 text-green-600 font-semibold';
-            } catch (err) {
-                msg.textContent = 'Failed to send recovery email.';
-                msg.className = 'text-xs text-center mt-3 text-red-600 font-semibold';
-            }
+            msg.textContent = 'The admin password is reset by the owner in the Vercel project environment settings.';
+            msg.className = 'text-xs text-center mt-3 text-slate-600 font-semibold';
         }
 
         function openFile(base64Data) {
@@ -123,7 +114,7 @@
             try {
                 const response = await fetch('/api/approve-lead', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: Object.assign({ 'Content-Type': 'application/json' }, adminAuthHeaders()),
                     body: JSON.stringify({ leadId })
                 });
                 const result = await response.json();
@@ -145,8 +136,13 @@
             container.innerHTML = `<p class="text-center text-slate-500 py-10">Loading secure client records...</p>`;
 
             try {
-                const response = await fetch('/api/get-leads');
+                const response = await fetch('/api/get-leads', { headers: adminAuthHeaders() });
                 const data = await response.json();
+
+                if (!response.ok || data.status !== 'success') {
+                    container.innerHTML = `<div class="bg-red-50 text-red-700 rounded-xl p-6 text-center border border-red-200">${data.message || 'Error loading leads from database.'}</div>`;
+                    return;
+                }
 
                 if (data.status === 'success' && data.leads.length > 0) {
                     container.innerHTML = data.leads.map(lead => {
@@ -208,7 +204,6 @@
                                     <div class="bg-slate-900 text-slate-100 p-4 rounded-xl text-xs font-mono whitespace-pre-wrap max-h-60 overflow-y-auto">${lead.disputeLetterDraft || 'Draft pending.'}</div>
                                 </div>
 
-                                <!-- Email Preview & Approval Action Section -->
                                 <div class="border-t border-slate-100 pt-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                                     <div class="text-xs text-slate-600">
                                         <p class="font-semibold text-slate-700 mb-1">Prepared Client Email Status:</p>
