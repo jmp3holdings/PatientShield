@@ -108,8 +108,8 @@
             }
         }
 
-        async function approveLead(leadId) {
-            if (!confirm('Are you sure you want to approve this audit package and send the email to the client?')) return;
+        const cardStatusMap = {};         function showCardStatus(leadId, msg, ok) {             cardStatusMap[leadId] = { msg: msg, ok: !!ok };             const el = document.getElementById('status-' + leadId);             if (el) { el.textContent = msg; el.className = 'text-xs font-semibold mt-1 ' + (ok ? 'text-emerald-600' : 'text-red-600'); }         }         function armConfirm(btn) {             if (!btn) return true;             if (btn.dataset.armed === '1') { btn.dataset.armed = ''; btn.textContent = btn.dataset.label || btn.textContent; return true; }             btn.dataset.label = btn.textContent;             btn.dataset.armed = '1';             btn.textContent = 'Click again to confirm';             setTimeout(() => { if (btn.dataset.armed === '1') { btn.dataset.armed = ''; btn.textContent = btn.dataset.label; } }, 8000);             return false;         }          async function approveLead(leadId, btn) {
+            if (!armConfirm(btn)) return;
             
             try {
                 const response = await fetch('/api/approve-lead', {
@@ -120,22 +120,22 @@
                 const result = await response.json();
 
                 if (result.status === 'success') {
-                    alert('Email approved and dispatched successfully!');
+                    showCardStatus(leadId, 'Email approved and dispatched successfully!', true);
                     loadLeads();
                 } else {
-                    alert('Error: ' + result.message);
+                    showCardStatus(leadId, 'Error: ' + result.message, false);
                 }
             } catch (err) {
-                alert('Connection error during approval.');
+                showCardStatus(leadId, 'Connection error during approval.', false);
                 console.error(err);
             }
         }
 
-        async function recordOutcome(leadId) {
+        async function recordOutcome(leadId, btn) {
             const reduced = document.getElementById('reduced-' + leadId).value;
             const ref = document.getElementById('ref-' + leadId).value.trim();
-            if (reduced === '' || !ref) { alert('Enter the reduced balance and the written confirmation reference.'); return; }
-            if (!confirm('Record this outcome? This computes the verified savings and fee, and sends the Stripe invoice when configured.')) return;
+            if (reduced === '' || !ref) { showCardStatus(leadId, 'Enter the reduced balance and the written confirmation reference.', false); return; }
+            if (!armConfirm(btn)) return;
             try {
                 const response = await fetch('/api/record-outcome', {
                     method: 'POST',
@@ -143,14 +143,14 @@
                     body: JSON.stringify({ leadId: leadId, reducedBalance: Number(reduced), confirmationRef: ref })
                 });
                 const result = await response.json();
-                if (result.status === 'success') { alert(result.message); loadLeads(); }
-                else { alert('Error: ' + result.message); }
-            } catch (err) { alert('Connection error while recording the outcome.'); console.error(err); }
+                if (result.status === 'success') { showCardStatus(leadId, result.message, true); loadLeads(); }
+                else { showCardStatus(leadId, 'Error: ' + result.message, false); }
+            } catch (err) { showCardStatus(leadId, 'Connection error while recording the outcome.', false); console.error(err); }
         }
 
-        async function sendDispute(leadId) {
+        async function sendDispute(leadId, btn) {
             const email = document.getElementById('hospemail-' + leadId).value.trim();
-            if (!confirm('Send the dispute packet to the hospital billing department now?')) return;
+            if (!armConfirm(btn)) return;
             try {
                 const response = await fetch('/api/send-dispute', {
                     method: 'POST',
@@ -158,9 +158,9 @@
                     body: JSON.stringify({ leadId: leadId, hospitalEmail: email || undefined })
                 });
                 const result = await response.json();
-                if (result.status === 'success') { alert(result.message); loadLeads(); }
-                else { alert('Error: ' + result.message); }
-            } catch (err) { alert('Connection error while sending the dispute.'); console.error(err); }
+                if (result.status === 'success') { showCardStatus(leadId, result.message, true); loadLeads(); }
+                else { showCardStatus(leadId, 'Error: ' + result.message, false); }
+            } catch (err) { showCardStatus(leadId, 'Connection error while sending the dispute.', false); console.error(err); }
         }
 
         async function loadLeads() {
@@ -237,19 +237,19 @@
                                 </div>
 
                                 <div class="border-t border-slate-100 pt-4">
-                                    <p class="font-semibold text-slate-700 text-sm mb-1">Case Pipeline</p>
+                                    <p class="font-semibold text-slate-700 text-sm mb-1">Case Pipeline</p> <p id="status-${lead.id}" class="text-xs font-semibold mt-1 ${cardStatusMap[lead.id] ? (cardStatusMap[lead.id].ok ? 'text-emerald-600' : 'text-red-600') : ''}">${cardStatusMap[lead.id] ? cardStatusMap[lead.id].msg : ''}</p>
                                     <p class="text-xs text-slate-600">State: <strong>${lead.caseState || 'legacy (pre-pipeline)'}</strong>${lead.agreement ? ' · Agreement: ✓ v' + lead.agreement.version + ' (' + new Date(lead.agreement.acceptedAt).toLocaleString() + ')' : ' · Agreement: ✗ none on file'}${lead.hospitalBillingEmail ? ' · Hospital billing email: ' + lead.hospitalBillingEmail : ''}</p>
                                     ${lead.disputeSentAt ? `<p class="text-xs text-emerald-600 font-semibold mt-1">✓ Dispute sent ${new Date(lead.disputeSentAt).toLocaleString()} to ${lead.disputeSentTo} (${lead.disputeChannel})</p>` : ''}
                                     ${lead.outcome ? `<p class="text-xs text-slate-700 mt-1">Outcome: <strong>${lead.outcome.result}</strong> — $${lead.outcome.originalBalance} → $${lead.outcome.reducedBalance} · Verified savings $${lead.outcome.verifiedSavings} · Fee $${lead.outcome.fee} · Ref: ${lead.outcome.confirmationRef}${lead.feeInvoice ? ' · Invoice: ' + lead.feeInvoice.invoiceStatus + (lead.feeInvoice.hostedInvoiceUrl ? ' (' + lead.feeInvoice.hostedInvoiceUrl + ')' : '') : ''}</p>` : `
                                     <div class="grid md:grid-cols-2 gap-3 mt-3">
                                         <div class="flex flex-col gap-2">
                                             <input type="email" id="hospemail-${lead.id}" placeholder="Hospital billing email" value="${lead.hospitalBillingEmail || ''}" class="border border-slate-300 rounded-lg px-3 py-2 text-xs">
-                                            <button onclick="sendDispute('${lead.id}')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl text-xs shadow transition cursor-pointer">Send Dispute Packet to Hospital</button>
+                                            <button onclick="sendDispute('${lead.id}', this)" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl text-xs shadow transition cursor-pointer">Send Dispute Packet to Hospital</button>
                                         </div>
                                         <div class="flex flex-col gap-2">
                                             <input type="number" step="0.01" min="0" id="reduced-${lead.id}" placeholder="Reduced balance (from written confirmation)" class="border border-slate-300 rounded-lg px-3 py-2 text-xs">
                                             <input type="text" id="ref-${lead.id}" placeholder="Confirmation reference (e.g. corrected statement date)" class="border border-slate-300 rounded-lg px-3 py-2 text-xs">
-                                            <button onclick="recordOutcome('${lead.id}')" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded-xl text-xs shadow transition cursor-pointer">Record Outcome & Invoice Fee</button>
+                                            <button onclick="recordOutcome('${lead.id}', this)" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded-xl text-xs shadow transition cursor-pointer">Record Outcome & Invoice Fee</button>
                                         </div>
                                     </div>`}
                                 </div>
@@ -264,7 +264,7 @@
                                     <div>
                                         ${isApproved 
                                             ? `<span class="bg-slate-100 text-slate-500 font-bold px-4 py-2 rounded-xl text-xs border border-slate-200 block">Email Already Sent</span>`
-                                            : `<button onclick="approveLead('${lead.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-2.5 rounded-xl text-sm shadow-md transition cursor-pointer">Approve & Send Email to Client</button>`
+                                            : `<button onclick="approveLead('${lead.id}', this)" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-2.5 rounded-xl text-sm shadow-md transition cursor-pointer">Approve & Send Email to Client</button>`
                                         }
                                     </div>
                                 </div>
