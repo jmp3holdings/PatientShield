@@ -33,6 +33,16 @@
             </form>
 
             <p id="portalStatus" class="text-center text-sm font-semibold mt-4"></p>
+
+            <div id="billingEmailBlock" class="hidden mt-8 border-t border-slate-100 pt-6">
+                <label class="block text-sm font-semibold text-slate-700 mb-1">Hospital billing department email (optional)</label>
+                <p class="text-xs text-slate-500 mb-2">If you know the email of the hospital's billing department, add it here — with your authorization on file, we can send your dispute packet directly to them.</p>
+                <div class="flex gap-2">
+                    <input type="email" id="hospitalBillingEmail" placeholder="billing@hospital.org" class="flex-1 border border-slate-300 rounded-xl px-3 py-2 text-sm">
+                    <button type="button" onclick="saveHospitalEmail()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded-xl text-sm cursor-pointer">Save</button>
+                </div>
+                <p id="billingEmailStatus" class="text-xs font-semibold mt-2"></p>
+            </div>
         </div>
     </div>
 
@@ -57,6 +67,8 @@
                         document.getElementById('totalLabel').textContent = lead.extractedBillAmount || '$0.00';
                         document.getElementById('loadingState').classList.add('hidden');
                         document.getElementById('portalForm').classList.remove('hidden');
+                        document.getElementById('billingEmailBlock').classList.remove('hidden');
+                        if (lead.hospitalBillingEmail) document.getElementById('hospitalBillingEmail').value = lead.hospitalBillingEmail;
                     } else {
                         document.getElementById('loadingState').textContent = 'Audit profile not found.';
                     }
@@ -124,6 +136,29 @@
                 btn.disabled = false;
             }
         });
+
+        async function saveHospitalEmail() {
+            const status = document.getElementById('billingEmailStatus');
+            const email = document.getElementById('hospitalBillingEmail').value.trim();
+            try {
+                const res = await fetch('/api/set-hospital-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ leadId: leadId, portalToken: portalToken, hospitalBillingEmail: email })
+                });
+                const result = await res.json();
+                if (res.ok && result.status === 'success') {
+                    status.textContent = 'Saved — thank you.';
+                    status.className = 'text-xs font-semibold mt-2 text-green-600';
+                } else {
+                    status.textContent = result.message || 'Could not save. Please check the address.';
+                    status.className = 'text-xs font-semibold mt-2 text-red-600';
+                }
+            } catch (err) {
+                status.textContent = 'Connection error. Please try again.';
+                status.className = 'text-xs font-semibold mt-2 text-red-600';
+            }
+        }
 
         fetchLeadDetails();
     </script>
