@@ -58,11 +58,11 @@ export default async function handler(req, res) {
     }
     const leadData = JSON.parse(getData.result);
 
-    if (leadData.outcome) {
+    if (leadData.outcome && leadData.feeInvoice && leadData.feeInvoice.invoiceStatus === 'sent') {
       return res.status(400).json({ status: 'error', message: 'An outcome is already recorded for this lead.' });
     }
 
-    const original = parseFloat(String(leadData.extractedBillAmount || '0').replace(/[^0-9.]/g, '')) || 0;
+    if (!leadData.outcome) { const original = parseFloat(String(leadData.extractedBillAmount || '0').replace(/[^0-9.]/g, '')) || 0;
     const savings = Math.round((original - reduced) * 100) / 100;
     const recordedAt = new Date().toISOString();
 
@@ -75,10 +75,10 @@ export default async function handler(req, res) {
 
     const fee = Math.round(Math.min(0.25 * savings, 1000) * 100) / 100;
     leadData.outcome = { result: 'reduced', originalBalance: original, reducedBalance: reduced, verifiedSavings: savings, fee, confirmationRef: String(confirmationRef).trim(), recordedAt };
-    leadData.caseState = 'reduced_confirmed';
+    leadData.caseState = 'reduced_confirmed'; await redis(['SET', `lead:${leadId}`, JSON.stringify(leadData)]); } const outcome = leadData.outcome; const fee = outcome.fee; const savings = outcome.verifiedSavings; const original = outcome.originalBalance; const finalReduced = outcome.reducedBalance;
 
     const stripeKey = process.env.STRIPE_SECRET_KEY;
-    if (stripeKey) {
+    if (stripeKey) { try {
       const stripe = async (path, params) => {
         const r = await fetch(`https://api.stripe.com/v1/${path}`, {
           method: 'POST',
@@ -91,17 +91,17 @@ export default async function handler(req, res) {
       };
       const customer = await stripe('customers', { name: leadData.fullName || 'ArguBill Client', email: leadData.clientEmail || '', 'metadata[leadId]': String(leadId) });
       const invoice = await stripe('invoices', { customer: customer.id, auto_advance: 'false', collection_method: 'send_invoice', due_date: Math.floor(Date.now() / 1000) + 14 * 24 * 3600, 'metadata[leadId]': String(leadId) });
-      const item = await stripe('invoiceitems', { customer: customer.id, invoice: invoice.id, amount: Math.round(fee * 100), currency: 'usd', description: `ArguBill fee — 25% of verified savings ($${original.toFixed(2)} bill reduced to $${reduced.toFixed(2)}; $${savings.toFixed(2)} verified savings)` });
+      const item = await stripe('invoiceitems', { customer: customer.id, invoice: invoice.id, amount: Math.round(fee * 100), currency: 'usd', description: `ArguBill fee — 25% of verified savings ($${original.toFixed(2)} bill reduced to $${finalReduced.toFixed(2)}; $${savings.toFixed(2)} verified savings)` });
       const finalized = await stripe(`invoices/${invoice.id}/finalize`, {});
       const sent = await stripe(`invoices/${invoice.id}/send`, {});
       leadData.feeInvoice = { id: invoice.id, number: sent.number || finalized.number || null, amount: fee, status: sent.status || 'open', hostedInvoiceUrl: sent.hosted_invoice_url || null, invoiceStatus: 'sent' };
-      leadData.caseState = 'invoiced';
+      leadData.caseState = 'invoiced'; } catch (stripeErr) { leadData.feeInvoice = { id: null, amount: fee, status: 'error', invoiceStatus: 'stripe_error', stripeError: String((stripeErr && stripeErr.message) || stripeErr) }; }
     } else {
       leadData.feeInvoice = { id: null, amount: fee, status: 'not_created', invoiceStatus: 'pending_stripe_config' };
     }
 
     await redis(['SET', `lead:${leadId}`, JSON.stringify(leadData)]);
-    return res.status(200).json({ status: 'success', message: `Outcome recorded: verified savings $${savings.toFixed(2)}, fee $${fee.toFixed(2)}${leadData.feeInvoice && leadData.feeInvoice.invoiceStatus === 'sent' ? ', invoice sent.' : ' (invoice pending Stripe configuration).'}`, outcome: leadData.outcome, feeInvoice: leadData.feeInvoice });
+    const invoiceNote = leadData.feeInvoice.invoiceStatus === 'sent' ? ', invoice sent.' : (leadData.feeInvoice.invoiceStatus === 'stripe_error' ? ` — INVOICE FAILED: ${leadData.feeInvoice.stripeError}` : ' (invoice pending Stripe configuration).'); return res.status(200).json({ status: 'success', message: `Outcome recorded: verified savings $${savings.toFixed(2)}, fee $${fee.toFixed(2)}${invoiceNote}`, outcome: leadData.outcome, feeInvoice: leadData.feeInvoice });
 
   } catch (error) {
     console.error('Record Outcome Error:', error);
