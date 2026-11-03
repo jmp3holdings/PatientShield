@@ -90,7 +90,7 @@ export default async function handler(req, res) {
         return j;
       };
       const customer = await stripe('customers', { name: leadData.fullName || 'ArguBill Client', email: leadData.clientEmail || '', 'metadata[leadId]': String(leadId) });
-      const invoice = await stripe('invoices', { customer: customer.id, auto_advance: 'false', 'metadata[leadId]': String(leadId) });
+      const invoice = await stripe('invoices', { customer: customer.id, auto_advance: 'false', collection_method: 'send_invoice', due_date: Math.floor(Date.now() / 1000) + 14 * 24 * 3600, 'metadata[leadId]': String(leadId) });
       const item = await stripe('invoiceitems', { customer: customer.id, invoice: invoice.id, amount: Math.round(fee * 100), currency: 'usd', description: `ArguBill fee — 25% of verified savings ($${original.toFixed(2)} bill reduced to $${reduced.toFixed(2)}; $${savings.toFixed(2)} verified savings)` });
       const finalized = await stripe(`invoices/${invoice.id}/finalize`, {});
       const sent = await stripe(`invoices/${invoice.id}/send`, {});
