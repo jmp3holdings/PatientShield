@@ -66,7 +66,7 @@
                     </div>
                 </div>
 
-                <button type="submit" id="submitBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl transition duration-200 shadow-md cursor-pointer">Start Free Bill Review</button>
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">                     <label class="flex items-start gap-3 cursor-pointer">                         <input type="checkbox" id="agreementAccepted" class="mt-1 h-4 w-4 shrink-0 accent-blue-600">                         <span class="text-xs text-slate-600 leading-relaxed"><strong class="text-slate-800">Service agreement &amp; authorization (required).</strong> I agree to the ArguBill service terms: the bill review is free, there is no upfront cost, and I pay only if my hospital balance is lowered &mdash; 25% of the verified savings, never more than $1,000. If my balance is not lowered, I pay $0. I authorize ArguBill to contact the hospital&rsquo;s billing department about my bill, to share the documents I provide, and to receive billing information on my behalf.</span>                     </label>                 </div>                 <button type="submit" id="submitBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl transition duration-200 shadow-md cursor-pointer">Start Free Bill Review</button>
             </form>
 
             <p id="statusMsg" class="text-center text-sm font-semibold mt-4"></p>
@@ -111,7 +111,7 @@
             const submitBtn = document.getElementById('submitBtn');
             const statusMsg = document.getElementById('statusMsg');
             
-            submitBtn.textContent = 'Running AI Forensic Audit on Uploaded Bill...';
+            const agreementBox = document.getElementById('agreementAccepted'); if (!agreementBox || !agreementBox.checked) { statusMsg.textContent = 'Please check the service agreement & authorization box so we can work on your bill.'; statusMsg.className = 'text-center text-sm font-semibold text-red-600 mt-4'; return; } submitBtn.textContent = 'Running AI Forensic Audit on Uploaded Bill...';
             submitBtn.disabled = true;
             statusMsg.textContent = 'Extracting bill text, scanning CPT codes, and analyzing line items...';
             statusMsg.className = 'text-center text-sm font-semibold text-blue-600 mt-4';
@@ -176,7 +176,7 @@
                     fileData,
                     fileText,
                     eobName,
-                    recordsName
+                    recordsName, agreementAccepted: true, agreementVersion: '2026-11-03-v1'
                 };
 
                 const response = await fetch('/api/submit-intake', {
