@@ -27,7 +27,7 @@ export default async function handler(req, res) {
     }
     return res.status(200).json({
       status: 'success',
-      lead: { id: lead.id, hospitalName: lead.hospitalName, extractedBillAmount: lead.extractedBillAmount }
+      lead: { id: lead.id, hospitalName: lead.hospitalName, extractedBillAmount: lead.extractedBillAmount, hospitalBillingEmail: lead.hospitalBillingEmail || '', caseState: lead.caseState || '' }
     });
   } catch (err) {
     console.error('Portal Lookup Error:', err);
