@@ -82,7 +82,7 @@ export default async function handler(req, res) {
 
     // 3. Update lead status in Redis to reflect successful approval and dispatch
     leadData.approvalStatus = 'approved_and_sent';
-    leadData.emailSentAt = new Date().toISOString();
+    leadData.emailSentAt = new Date().toISOString(); leadData.caseState = 'findings_sent';
 
     await fetch(redisUrl, {
       method: 'POST',
