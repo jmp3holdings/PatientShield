@@ -12,7 +12,7 @@
     <div id="loginScreen" class="max-w-md mx-auto mt-24 bg-white p-8 rounded-2xl shadow-xl border border-slate-200">
         <h2 class="text-2xl font-bold mb-2 text-slate-800">Admin Portal Login</h2>
         <p class="text-sm text-slate-500 mb-6">Enter your secure password to access client audit records.</p>
-
+        
         <form id="loginForm" class="space-y-4">
             <input type="password" id="adminPassword" placeholder="Admin Password" required class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:outline-none">
             <button type="submit" id="loginBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg transition cursor-pointer">Login to Dashboard</button>
@@ -64,58 +64,69 @@
                 if (data.status === 'success') {
                     sessionStorage.setItem('adminPassword', password);
                     document.getElementById('loginScreen').style.display = 'none';
-                    document.getElementById('dashboard').style.display = 'block';
+                    const dash = document.getElementById('dashboard');
+                    dash.style.display = 'block';
+                    dash.classList.remove('hidden');
                     loadLeads();
                 } else {
-                    msg.textContent = data.message || 'Login failed.';
-                    msg.className = 'text-xs text-center mt-3 text-red-600';
+                    msg.textContent = data.message || 'Incorrect password.';
+                    msg.className = 'text-xs text-center mt-3 text-red-600 font-semibold';
+                    btn.textContent = 'Login to Dashboard';
                 }
             } catch (err) {
                 msg.textContent = 'Connection error during login.';
-                msg.className = 'text-xs text-center mt-3 text-red-600';
-            } finally {
+                msg.className = 'text-xs text-center mt-3 text-red-600 font-semibold';
                 btn.textContent = 'Login to Dashboard';
             }
         });
 
-        async function forgotPassword() {
-            const email = prompt('Enter your admin email for password reset instructions:');
-            if (!email) return;
+        function forgotPassword() {
+            const msg = document.getElementById('msg');
+            msg.textContent = 'The admin password is reset by the owner in the Vercel project environment settings.';
+            msg.className = 'text-xs text-center mt-3 text-slate-600 font-semibold';
+        }
+
+        function openFile(base64Data) {
+            if (!base64Data) {
+                alert('No file data attached to this record.');
+                return;
+            }
             try {
-                const res = await fetch('/api/forgot-password', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email })
-                });
-                const data = await res.json();
-                alert(data.message || 'If that email is on file, reset instructions have been sent.');
-            } catch (err) {
-                alert('Connection error during password reset.');
+                const arr = base64Data.split(',');
+                const mime = arr[0] && arr[0].includes(':') ? arr[0].match(/:(.*?);/)[1] : 'application/pdf';
+                const bstr = atob(arr[1] || arr[0]);
+                let n = bstr.length;
+                const u8arr = new Uint8Array(n);
+                while (n--) {
+                    u8arr[n] = bstr.charCodeAt(n);
+                }
+                const blob = new Blob([u8arr], { type: mime });
+                const blobUrl = URL.createObjectURL(blob);
+                window.open(blobUrl, '_blank');
+            } catch (e) {
+                window.open(base64Data, '_blank');
             }
         }
 
-        function openFile(fileData) {
-            const win = window.open('', '_blank');
-            win.document.write('<iframe src="' + fileData + '" style="width:100%;height:100vh;border:none;"></iframe>');
-        }
-
         async function approveLead(leadId) {
-            if (!confirm('Are you sure you want to approve this dispute letter and send the email to the client?')) return;
+            if (!confirm('Are you sure you want to approve this audit package and send the email to the client?')) return;
+            
             try {
                 const response = await fetch('/api/approve-lead', {
                     method: 'POST',
                     headers: Object.assign({ 'Content-Type': 'application/json' }, adminAuthHeaders()),
-                    body: JSON.stringify({ leadId: leadId })
+                    body: JSON.stringify({ leadId })
                 });
                 const result = await response.json();
+
                 if (result.status === 'success') {
-                    alert(result.message);
+                    alert('Email approved and dispatched successfully!');
                     loadLeads();
                 } else {
                     alert('Error: ' + result.message);
                 }
             } catch (err) {
-                alert('Connection error while approving lead.');
+                alert('Connection error during approval.');
                 console.error(err);
             }
         }
@@ -154,78 +165,76 @@
 
         async function loadLeads() {
             const container = document.getElementById('leadsContainer');
-            container.innerHTML = '<div class="text-center py-10 text-slate-500">Loading leads...</div>';
+            container.innerHTML = `<p class="text-center text-slate-500 py-10">Loading secure client records...</p>`;
 
             try {
-                const response = await fetch('/api/admin-leads', {
-                    headers: adminAuthHeaders()
-                });
+                const response = await fetch('/api/get-leads', { headers: adminAuthHeaders() });
                 const data = await response.json();
 
-                if (!response.ok) {
-                    container.innerHTML = '<div class="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl">Error: ' + (data.message || 'Could not load leads.') + '</div>';
+                if (!response.ok || data.status !== 'success') {
+                    container.innerHTML = `<div class="bg-red-50 text-red-700 rounded-xl p-6 text-center border border-red-200">${data.message || 'Error loading leads from database.'}</div>`;
                     return;
                 }
 
-                if (data.status === 'success' && data.leads && data.leads.length > 0) {
+                if (data.status === 'success' && data.leads.length > 0) {
                     container.innerHTML = data.leads.map(lead => {
-                        const isApproved = lead.emailSentAt ? true : false;
-                        const emailContent = lead.emailContent || { subject: '', recipient: '' };
+                        const isApproved = lead.approvalStatus === 'approved_and_sent';
+                        const emailContent = lead.preparedEmailContent || {};
 
                         return `
-                                <div class="bg-white rounded-2xl shadow-md border border-slate-200 p-6 space-y-4">
-                                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-100 pb-4 gap-4">
-                                        <div>
-                                            <div class="flex items-center gap-2">
-                                                <h3 class="text-xl font-bold text-slate-800">${lead.fullName}</h3>
-                                                <span class="text-xs px-2.5 py-1 rounded-full font-bold ${isApproved ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
-                                                    ${isApproved ? '✓ Email Sent' : '⏳ Pending Admin Approval'}
-                                                </span>
-                                            </div>
-                                            <p class="text-sm text-slate-500 mt-1">Hospital: ${lead.hospitalName} · Email: ${lead.clientEmail} · Phone: ${lead.phone}</p>
-                                            <p class="text-xs text-slate-400 mt-1">Submitted: ${new Date(lead.createdAt).toLocaleString()} · ID: ${lead.id}</p>
+                            <div class="bg-white rounded-2xl shadow-md border border-slate-200 p-6 space-y-4">
+                                <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-100 pb-4 gap-4">
+                                    <div>
+                                        <div class="flex items-center gap-2">
+                                            <h3 class="text-xl font-bold text-slate-800">${lead.fullName}</h3>
+                                            <span class="text-xs px-2.5 py-1 rounded-full font-bold ${isApproved ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
+                                                ${isApproved ? '✓ Email Sent' : '⏳ Pending Admin Approval'}
+                                            </span>
                                         </div>
-                                        <div class="flex gap-4 items-center">
-                                            <div class="text-right">
-                                                <span class="block text-xs text-slate-500 font-semibold">Extracted Bill Total</span>
-                                                <span class="block text-lg font-bold text-slate-800">${lead.extractedBillAmount || '$0'}</span>
-                                            </div>
-                                            <div class="text-right bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-1.5">
-                                                <span class="block text-xs text-emerald-700 font-semibold">Potential Savings</span>
-                                                <span class="block text-lg font-bold text-emerald-700">${lead.estimatedSavings || '$0.00'}</span>
-                                            </div>
+                                        <p class="text-sm text-slate-500">Hospital: <strong class="text-blue-600">${lead.hospitalName}</strong> | Email: ${lead.clientEmail} | Phone: ${lead.phone}</p>
+                                        <p class="text-xs text-slate-400 mt-1">📅 Submitted: ${lead.submittedAt ? new Date(lead.submittedAt).toLocaleString() : 'N/A'}</p>
+                                    </div>
+                                    <div class="flex gap-4 items-center">
+                                        <div class="text-right">
+                                            <span class="text-xs text-slate-400 block font-medium">Extracted Bill Total</span>
+                                            <span class="text-lg font-extrabold text-slate-900">${lead.extractedBillAmount || '$0'}</span>
+                                        </div>
+                                        <div class="text-right bg-emerald-50 px-4 py-2 rounded-xl border border-emerald-200">
+                                            <span class="text-xs text-emerald-700 block font-semibold">Potential Savings</span>
+                                            <span class="text-lg font-black text-emerald-600">${lead.estimatedSavings || '$0.00'}</span>
                                         </div>
                                     </div>
+                                </div>
 
-                                    <div class="grid md:grid-cols-2 gap-6">
-                                        <div>
-                                            <p class="font-semibold text-slate-700 text-sm mb-2">Uploaded Documents (Patient Evidence):</p>
-                                            <p class="text-slate-600 flex items-center justify-between gap-2 mb-2">
-                                                <span>• Bill: ${lead.fileName}</span>
-                                                ${lead.fileData ? `<button onclick="openFile('${lead.fileData}')" class="bg-blue-600 text-white text-xs px-3 py-1 rounded-lg hover:bg-blue-700 font-semibold cursor-pointer shadow-sm">View File</button>` : ''}
-                                            </p>
-                                            <p class="text-slate-600 mb-2">• EOB: ${lead.eobName}</p>
-                                            <p class="text-slate-600 mb-3">• Records: ${lead.recordsName}</p>
-
-                                            ${lead.missingInfoRequests && lead.missingInfoRequests.length > 0 ? `
-                                            <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm bg-slate-50 p-4 rounded-xl">
+                                    <div>
+                                        <p class="font-semibold text-slate-700 mb-1">Uploaded Documents & Requests:</p>
+                                        <p class="text-slate-600 flex items-center justify-between gap-2 mb-2">
+                                            <span>• Bill: ${lead.fileName}</span>
+                                            ${lead.fileData ? `<button onclick="openFile('${lead.fileData}')" class="bg-blue-600 text-white text-xs px-3 py-1 rounded-lg hover:bg-blue-700 font-semibold cursor-pointer shadow-sm">View File</button>` : ''}
+                                        </p>
+                                        <p class="text-slate-600">• EOB: ${lead.eobName}</p>
+                                        <p class="text-slate-600 mb-3">• Records: ${lead.recordsName}</p>
+                                        
+                                        ${lead.missingInfoRequests && lead.missingInfoRequests.length > 0 ? `
+                                            <div class="bg-amber-50 border-l-4 border-amber-500 p-2.5 text-xs text-amber-900 rounded-lg">
                                                 <p class="font-bold mb-1">⚠️ Missing Information Requested from Client:</p>
                                                 <ul class="list-disc pl-4 space-y-0.5">
                                                     ${lead.missingInfoRequests.map(req => `<li>${req}</li>`).join('')}
                                                 </ul>
                                             </div>
-                                            ` : ''}
-                                        </div>
-                                        <div>
-                                            <p class="font-semibold text-slate-700 text-sm mb-2">AI Forensic Findings (CPT/HCPCS & Duplicate Detection):</p>
-                                            ${lead.analysisFindings && lead.analysisFindings.length > 0 ? lead.analysisFindings.map(f => `<p class="text-slate-600 text-xs mb-1.5">• <strong>${f.category}:</strong> ${f.description}</p>`).join('') : '<p class="text-slate-500 text-xs italic">No verified billing discrepancies or duplicate entries identified yet.</p>'}
-                                        </div>
+                                        ` : ''}
                                     </div>
-
                                     <div>
-                                        <h4 class="font-semibold text-slate-700 text-sm mb-2">Generated Hospital Dispute Letter Draft (with Verification References):</h4>
-                                        <div class="bg-slate-900 text-slate-100 p-4 rounded-xl text-xs whitespace-pre-wrap font-mono max-h-64 overflow-y-auto">${lead.disputeLetterDraft || 'Draft pending.'}</div>
+                                        <p class="font-semibold text-slate-700 mb-1">AI Forensic Findings & Discrepancies:</p>
+                                        ${lead.analysisFindings && lead.analysisFindings.length > 0 ? lead.analysisFindings.map(f => `<p class="text-slate-600 text-xs mb-1.5">• <strong>${f.category}:</strong> ${f.description}</p>`).join('') : '<p class="text-slate-500 text-xs italic">No verified billing discrepancies or duplicate entries identified yet.</p>'}
                                     </div>
+                                </div>
+
+                                <div>
+                                    <h4 class="font-bold text-sm text-slate-700 mb-2">Generated Hospital Dispute Letter Draft (with Verification References):</h4>
+                                    <div class="bg-slate-900 text-slate-100 p-4 rounded-xl text-xs font-mono whitespace-pre-wrap max-h-60 overflow-y-auto">${lead.disputeLetterDraft || 'Draft pending.'}</div>
+                                </div>
 
                                 <div class="border-t border-slate-100 pt-4">
                                     <p class="font-semibold text-slate-700 text-sm mb-1">Case Pipeline</p>
@@ -246,27 +255,27 @@
                                 </div>
 
                                 <div class="border-t border-slate-100 pt-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                                        <div class="text-xs text-slate-600">
-                                            <p class="font-semibold text-slate-700 mb-1">Prepared Client Email Status:</p>
-                                            <p><strong>Subject:</strong> ${emailContent.subject || 'N/A'}</p>
-                                            <p><strong>Recipient:</strong> ${emailContent.recipient || lead.clientEmail}</p>
-                                            ${isApproved ? `<p class="text-emerald-600 font-semibold mt-1">✓ Dispatched at: ${new Date(lead.emailSentAt).toLocaleString()}</p>` : ''}
-                                        </div>
-                                        <div>
-                                            ${isApproved
-                                                ? `<span class="text-xs bg-emerald-100 text-emerald-800 px-3 py-1.5 rounded-full font-bold">Email Already Sent</span>`
-                                                : `<button onclick="approveLead('${lead.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs shadow transition cursor-pointer">Approve & Send Email to Client</button>`
-                                            }
-                                        </div>
+                                    <div class="text-xs text-slate-600">
+                                        <p class="font-semibold text-slate-700 mb-1">Prepared Client Email Status:</p>
+                                        <p><strong>Subject:</strong> ${emailContent.subject || 'N/A'}</p>
+                                        <p><strong>Recipient:</strong> ${emailContent.recipient || lead.clientEmail}</p>
+                                        ${isApproved ? `<p class="text-emerald-600 font-semibold mt-1">✓ Dispatched at: ${new Date(lead.emailSentAt).toLocaleString()}</p>` : ''}
+                                    </div>
+                                    <div>
+                                        ${isApproved 
+                                            ? `<span class="bg-slate-100 text-slate-500 font-bold px-4 py-2 rounded-xl text-xs border border-slate-200 block">Email Already Sent</span>`
+                                            : `<button onclick="approveLead('${lead.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-2.5 rounded-xl text-sm shadow-md transition cursor-pointer">Approve & Send Email to Client</button>`
+                                        }
                                     </div>
                                 </div>
-                            `;
+                            </div>
+                        `;
                     }).join('');
                 } else {
-                    container.innerHTML = `<div class="bg-white rounded-2xl shadow-md border p-6 text-center text-slate-500">No client audit records found yet.</div>`;
+                    container.innerHTML = `<div class="bg-white rounded-xl p-8 text-center border border-slate-200 text-slate-500">No client audit records found yet.</div>`;
                 }
             } catch (err) {
-                container.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl">Error loading leads from database.</div>`;
+                container.innerHTML = `<div class="bg-red-50 text-red-700 rounded-xl p-6 text-center border border-red-200">Error loading leads from database.</div>`;
             }
         }
     </script>
