@@ -24,7 +24,7 @@ export default async function handler(req, res) {
       if (!body.phone || !String(body.phone).trim()) {
         return res.status(400).json({ status: 'error', message: 'Phone number is required.' });
       }
-      if (!body.hospitalName || !String(body.hospitalName).trim()) {
+      if (body.agreementAccepted !== true) { return res.status(400).json({ status: 'error', message: 'The service agreement and authorization must be accepted so we can work on your bill.' }); } if (!body.hospitalName || !String(body.hospitalName).trim()) {
         return res.status(400).json({ status: 'error', message: 'Hospital / facility name is required.' });
       }
     }
@@ -193,7 +193,7 @@ export default async function handler(req, res) {
       aiStatus,
       confirmationEmailStatus: 'pending',
       adminAlertStatus: 'pending',
-      approvalStatus: 'pending_admin_approval',
+      approvalStatus: 'pending_admin_approval', agreement: isPortalUpload ? null : { accepted: true, version: body.agreementVersion || 'unknown', acceptedAt: new Date().toISOString() }, caseState: isPortalUpload ? 'portal_upload' : (missingInfoRequests.length > 0 ? 'awaiting_docs' : 'ready_for_dispute'), disputeSentAt: null, outcome: null, feeInvoice: null,
       preparedEmailContent: { recipient: clientEmail, subject: emailSubject, bodyHtml: emailBodyHtml },
       submittedAt: new Date().toISOString()
     };
