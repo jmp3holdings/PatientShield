@@ -1,5 +1,8 @@
 {
   "rewrites": [
     { "source": "/admin", "destination": "/admin.html" }
+  ],
+  "crons": [
+    { "path": "/api/chase", "schedule": "0 14 * * *" }
   ]
 }
