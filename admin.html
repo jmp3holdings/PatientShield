@@ -147,6 +147,19 @@
                 else { showCardStatus(leadId, 'Error: ' + result.message, false); }
             } catch (err) { showCardStatus(leadId, 'Connection error while recording the outcome.', false); console.error(err); }
         }
+        async function retryInvoice(leadId, reduced, refEnc, btn) {
+            if (!armConfirm(btn)) return;
+            try {
+                const response = await fetch('/api/record-outcome', {
+                    method: 'POST',
+                    headers: Object.assign({ 'Content-Type': 'application/json' }, adminAuthHeaders()),
+                    body: JSON.stringify({ leadId: leadId, reducedBalance: Number(reduced), confirmationRef: decodeURIComponent(refEnc) })
+                });
+                const result = await response.json();
+                if (result.status === 'success') { showCardStatus(leadId, result.message, true); loadLeads(); }
+                else { showCardStatus(leadId, 'Error: ' + result.message, false); }
+            } catch (err) { showCardStatus(leadId, 'Connection error while retrying the invoice.', false); console.error(err); }
+        }
 
         async function sendDispute(leadId, btn) {
             const email = document.getElementById('hospemail-' + leadId).value.trim();
@@ -240,7 +253,7 @@
                                     <p class="font-semibold text-slate-700 text-sm mb-1">Case Pipeline</p> <p id="status-${lead.id}" class="text-xs font-semibold mt-1 ${cardStatusMap[lead.id] ? (cardStatusMap[lead.id].ok ? 'text-emerald-600' : 'text-red-600') : ''}">${cardStatusMap[lead.id] ? cardStatusMap[lead.id].msg : ''}</p>
                                     <p class="text-xs text-slate-600">State: <strong>${lead.caseState || 'legacy (pre-pipeline)'}</strong>${lead.agreement ? ' · Agreement: ✓ v' + lead.agreement.version + ' (' + new Date(lead.agreement.acceptedAt).toLocaleString() + ')' : ' · Agreement: ✗ none on file'}${lead.hospitalBillingEmail ? ' · Hospital billing email: ' + lead.hospitalBillingEmail : ''}</p>
                                     ${lead.disputeSentAt ? `<p class="text-xs text-emerald-600 font-semibold mt-1">✓ Dispute sent ${new Date(lead.disputeSentAt).toLocaleString()} to ${lead.disputeSentTo} (${lead.disputeChannel})</p>` : ''}
-                                    ${lead.outcome ? `<p class="text-xs text-slate-700 mt-1">Outcome: <strong>${lead.outcome.result}</strong> — $${lead.outcome.originalBalance} → $${lead.outcome.reducedBalance} · Verified savings $${lead.outcome.verifiedSavings} · Fee $${lead.outcome.fee} · Ref: ${lead.outcome.confirmationRef}${lead.feeInvoice ? ' · Invoice: ' + lead.feeInvoice.invoiceStatus + (lead.feeInvoice.hostedInvoiceUrl ? ' (' + lead.feeInvoice.hostedInvoiceUrl + ')' : '') : ''}</p>` : `
+                                    ${lead.outcome ? `<p class="text-xs text-slate-700 mt-1">Outcome: <strong>${lead.outcome.result}</strong> — $${lead.outcome.originalBalance} → $${lead.outcome.reducedBalance} · Verified savings $${lead.outcome.verifiedSavings} · Fee $${lead.outcome.fee} · Ref: ${lead.outcome.confirmationRef}${lead.feeInvoice ? ' · Invoice: ' + lead.feeInvoice.invoiceStatus + (lead.feeInvoice.hostedInvoiceUrl ? ' (' + lead.feeInvoice.hostedInvoiceUrl + ')' : '') : ''}</p>${lead.feeInvoice && lead.feeInvoice.invoiceStatus === 'stripe_error' ? `<div class="mt-2"><button onclick="retryInvoice('${lead.id}', ${lead.outcome.reducedBalance}, '${encodeURIComponent(lead.outcome.confirmationRef)}', this)" class="bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2 rounded-xl text-xs shadow transition cursor-pointer">Retry Fee Invoice</button></div>` : ''}` : `
                                     <div class="grid md:grid-cols-2 gap-3 mt-3">
                                         <div class="flex flex-col gap-2">
                                             <input type="email" id="hospemail-${lead.id}" placeholder="Hospital billing email" value="${lead.hospitalBillingEmail || ''}" class="border border-slate-300 rounded-lg px-3 py-2 text-xs">
