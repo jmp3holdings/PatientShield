@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PatientShield | Zero Upfront Costs • HIPAA Secure</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- PDF.js for parsing PDF text in browser -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans antialiased">
+
+    <div class="max-w-4xl mx-auto px-6 py-12">
+        <!-- Header -->
+        <div class="text-center mb-10">
+            <h1 class="text-4xl font-extrabold tracking-tight text-slate-900 mb-2">Fighting Inflated Hospital Bills <span class="text-blue-600">For You.</span></h1>
+            <p class="text-slate-600 max-w-2xl mx-auto text-base">Over 80% of high-acuity and catastrophic hospital bills contain severe errors. We audit your records securely, challenge hospital billing departments, and only get paid if we successfully lower your balance.</p>
+        </div>
+
+        <!-- Form Card -->
+        <div class="bg-white rounded-2xl shadow-xl border border-slate-200 p-8">
+            <h2 class="text-2xl font-bold mb-6 text-slate-800 border-b pb-4">Start Your Free Secure Bill Review</h2>
+
+            <form id="intakeForm" class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Full Name</label>
+                        <input type="text" id="fullName" required class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Email Address</label>
+                        <input type="email" id="email" required class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:outline-none">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Phone Number</label>
+                        <input type="tel" id="phone" required class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Hospital / Facility Name</label>
+                        <input type="text" id="hospitalName" required class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:outline-none">
+                    </div>
+                </div>
+
+                <div class="space-y-4 pt-4 border-t border-slate-100">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Itemized Hospital Bill (UB-04 / CMS-1450) <span class="text-red-600">*Required</span></label>
+                        <input type="file" id="billFile" accept="image/*,.pdf" required class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                    </div>
+
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
+                        <h3 class="text-sm font-bold text-slate-800">Optional Supporting Documents</h3>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Explanation of Benefits (EOB) / Insurance Statement</label>
+                            <input type="file" id="eobFile" accept="image/*,.pdf" class="w-full text-xs text-slate-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-200 file:text-slate-700 hover:file:bg-slate-300">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Medical Records / Physician Notes</label>
+                            <input type="file" id="recordsFile" accept="image/*,.pdf" class="w-full text-xs text-slate-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-200 file:text-slate-700 hover:file:bg-slate-300">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">                     <label class="flex items-start gap-3 cursor-pointer">                         <input type="checkbox" id="agreementAccepted" class="mt-1 h-4 w-4 shrink-0 accent-blue-600">                         <span class="text-xs text-slate-600 leading-relaxed"><strong class="text-slate-800">Service agreement &amp; authorization (required).</strong> I agree to the ArguBill service terms: the bill review is free, there is no upfront cost, and I pay only if my hospital balance is lowered &mdash; 25% of the verified savings, never more than $1,000. If my balance is not lowered, I pay $0. I authorize ArguBill to contact the hospital&rsquo;s billing department about my bill, to share the documents I provide, and to receive billing information on my behalf.</span>                     </label>                 </div>                 <button type="submit" id="submitBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl transition duration-200 shadow-md cursor-pointer">Start Free Bill Review</button>
+            </form>
+
+            <p id="statusMsg" class="text-center text-sm font-semibold mt-4"></p>
+        </div>
+    </div>
+    <!-- JMP3 Holdings parent badge -->
+    <div class="jmp3-parent-badge" style="text-align:center;padding:20px 0;font-family:inherit">
+      <a href="https://jmp3holdings.com" target="_blank" rel="noopener" aria-label="A JMP3 Holdings company" style="display:inline-flex;align-items:center;gap:8px;text-decoration:none;color:inherit">
+        <span style="font-size:14px;opacity:.75">A</span>
+        <img src="/jmp3-badge-horizontal-light.png" alt="JMP3 Holdings" style="height:26px;width:auto">
+        <span style="font-size:14px;opacity:.75">company</span>
+      </a>
+    </div>
+    <script>
+        async function convertFileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                if (!file) {
+                    resolve(null);
+                    return;
+                }
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+            });
+        }
+
+        async function extractPdfText(file) {
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                let fullText = '';
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const pageText = textContent.items.map(item => item.str).join(' ');
+                    fullText += `--- Page ${i} ---\n` + pageText + '\n';
+                }
+                return fullText;
+            } catch (err) {
+                console.error('PDF Extraction Error:', err);
+                return '';
+            }
+        }
+
+        document.getElementById('intakeForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const submitBtn = document.getElementById('submitBtn');
+            const statusMsg = document.getElementById('statusMsg');
+            
+            const agreementBox = document.getElementById('agreementAccepted'); if (!agreementBox || !agreementBox.checked) { statusMsg.textContent = 'Please check the service agreement & authorization box so we can work on your bill.'; statusMsg.className = 'text-center text-sm font-semibold text-red-600 mt-4'; return; } submitBtn.textContent = 'Running AI Forensic Audit on Uploaded Bill...';
+            submitBtn.disabled = true;
+            statusMsg.textContent = 'Extracting bill text, scanning CPT codes, and analyzing line items...';
+            statusMsg.className = 'text-center text-sm font-semibold text-blue-600 mt-4';
+
+            const showFormError = (message) => {
+                statusMsg.textContent = message;
+                statusMsg.className = 'text-center text-sm font-semibold text-red-600 mt-4';
+            };
+
+            try {
+                const fullName = document.getElementById('fullName').value.trim();
+                const email = document.getElementById('email').value.trim();
+                const phone = document.getElementById('phone').value.trim();
+                const hospitalName = document.getElementById('hospitalName').value.trim();
+                
+                const billFileInput = document.getElementById('billFile');
+                const eobFileInput = document.getElementById('eobFile');
+                const recordsFileInput = document.getElementById('recordsFile');
+
+                if (!fullName) { showFormError('Full name is required.'); return; }
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showFormError('A valid email address is required.'); return; }
+                if (!phone) { showFormError('Phone number is required.'); return; }
+                if (!hospitalName) { showFormError('Hospital / facility name is required.'); return; }
+                if (!billFileInput || !billFileInput.files[0]) { showFormError('An itemized bill file is required.'); return; }
+                const billFile = billFileInput.files[0];
+                const billLowerName = billFile.name.toLowerCase();
+                const billTypeOk = billFile.type.startsWith('image/') || billFile.type === 'application/pdf' || billFile.type === 'text/plain' || billLowerName.endsWith('.pdf') || billLowerName.endsWith('.png') || billLowerName.endsWith('.jpg') || billLowerName.endsWith('.jpeg') || billLowerName.endsWith('.gif') || billLowerName.endsWith('.webp') || billLowerName.endsWith('.txt');
+                if (!billTypeOk) { showFormError('Itemized bill must be a PDF, image, or text file.'); return; }
+                if (billFile.size > 10 * 1024 * 1024) { showFormError('Itemized bill file must be 10 MB or smaller.'); return; }
+
+                let fileData = null;
+                let fileText = '';
+                let fileName = 'Not Provided';
+                let eobName = 'Not Provided';
+                let recordsName = 'Not Provided';
+
+                if (billFileInput && billFileInput.files[0]) {
+                    const file = billFileInput.files[0];
+                    fileName = file.name;
+                    fileData = await convertFileToBase64(file);
+                    
+                    if (file.type === 'application/pdf' || fileName.toLowerCase().endsWith('.pdf')) {
+                        statusMsg.textContent = 'Reading PDF text contents...';
+                        fileText = await extractPdfText(file);
+                    } else if (file.type === 'text/plain' || fileName.toLowerCase().endsWith('.txt')) {
+                        fileText = await file.text();
+                    }
+                }
+                if (eobFileInput && eobFileInput.files[0]) {
+                    eobName = eobFileInput.files[0].name;
+                }
+                if (recordsFileInput && recordsFileInput.files[0]) {
+                    recordsName = recordsFileInput.files[0].name;
+                }
+
+                const payload = {
+                    fullName,
+                    email,
+                    phone,
+                    hospitalName,
+                    fileName,
+                    fileData,
+                    fileText,
+                    eobName,
+                    recordsName, agreementAccepted: true, agreementVersion: '2026-11-03-v1'
+                };
+
+                const response = await fetch('/api/submit-intake', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.status === 'success') {
+                    statusMsg.textContent = 'Success! Secure audit pipeline initiated. Check your email for details.';
+                    statusMsg.className = 'text-center text-sm font-semibold text-green-600 mt-4';
+                    document.getElementById('intakeForm').reset();
+                } else {
+                    statusMsg.textContent = "We couldn't save your submission — please try again" + (response.status === 400 && result.message ? ' ' + result.message : '');
+                    statusMsg.className = 'text-center text-sm font-semibold text-red-600 mt-4';
+                }
+            } catch (err) {
+                console.error('Submission Error:', err);
+                statusMsg.textContent = 'Connection error. Please check your network and try again.';
+                statusMsg.className = 'text-center text-sm font-semibold text-red-600 mt-4';
+            } finally {
+                submitBtn.textContent = 'Start Free Bill Review';
+                submitBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
