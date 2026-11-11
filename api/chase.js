@@ -28,7 +28,7 @@ export default async function handler(req, res) {
     };
 
     const resendKey = process.env.RESEND_API_KEY;
-    const adminEmail = process.env.ADMIN_EMAIL || 'admin@thepatientshield.com';
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@argubill.com';
     const now = Date.now();
     const summary = { scanned: 0, nudgesSent: 0, movedToReview: 0, errors: [] };
 
@@ -85,7 +85,7 @@ export default async function handler(req, res) {
         const sendRes = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ from: 'audit@thepatientshield.com', to, reply_to: adminEmail, subject, text })
+          body: JSON.stringify({ from: 'audit@argubill.com', to, reply_to: adminEmail, subject, text })
         });
         const sendJson = await sendRes.json().catch(() => ({}));
         if (!sendRes.ok) {
