@@ -53,13 +53,13 @@ export default async function handler(req, res) {
           matched = 'hospital';
 
           const resendKey = process.env.RESEND_API_KEY;
-          const adminEmail = process.env.ADMIN_EMAIL || 'admin@thepatientshield.com';
+          const adminEmail = process.env.ADMIN_EMAIL || 'admin@argubill.com';
           if (resendKey) {
             await fetch('https://api.resend.com/emails', {
               method: 'POST',
               headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                from: 'audit@thepatientshield.com',
+                from: 'audit@argubill.com',
                 to: adminEmail,
                 subject: `Hospital reply received — ${lead.fullName || 'client'} / ${lead.hospitalName || 'facility'}`,
                 text: `A reply arrived from the hospital billing address on file (${lead.hospitalBillingEmail}).\n\nFrom: ${senderEmail}\nSubject: ${subject}\nReceived: ${receivedAt}\nCase state: ${lead.caseState}\n\nExcerpt:\n${snippet || '(no text body)'}\n\nReview the lead in the admin dashboard.`
