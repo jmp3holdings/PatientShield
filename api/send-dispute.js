@@ -79,7 +79,7 @@ export default async function handler(req, res) {
     const letterHtml = esc(letter).replace(/\n/g, '<br>');
     const authDate = leadData.agreement.acceptedAt ? new Date(leadData.agreement.acceptedAt).toLocaleString('en-US') : 'on file';
     const html = `<div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; color: #222;">
-<p style="font-size: 13px; color: #555;">Submitted by ArguBill (The Patient Shield) on behalf of the patient named below, under the patient's written authorization provided at intake on ${esc(authDate)} (agreement version ${esc(leadData.agreement.version || 'n/a')}). ArguBill is authorized to contact your billing department about this bill, to share the patient's documents, and to receive billing information on the patient's behalf.</p>
+<p style="font-size: 13px; color: #555;">Submitted by ArguBill on behalf of the patient named below, under the patient's written authorization provided at intake on ${esc(authDate)} (agreement version ${esc(leadData.agreement.version || 'n/a')}). ArguBill is authorized to contact your billing department about this bill, to share the patient's documents, and to receive billing information on the patient's behalf.</p>
 <hr>
 <div style="font-size: 14px; line-height: 1.55;">${letterHtml}</div>
 <hr>
@@ -89,9 +89,9 @@ export default async function handler(req, res) {
 </div>`;
 
     const payload = {
-      from: 'The Patient Shield <audit@thepatientshield.com>',
+      from: 'ArguBill <audit@argubill.com>',
       to: [destination],
-      reply_to: 'admin@thepatientshield.com',
+      reply_to: 'admin@argubill.com',
       subject: `Billing Dispute — ${leadData.fullName} — ${leadData.hospitalName} — Bill Total ${leadData.extractedBillAmount}`,
       html
     };
