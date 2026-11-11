@@ -42,7 +42,7 @@ export default async function handler(req, res) {
     }
 
     const fullName = isPortalUpload ? (body.fullName || 'Valued Client') : String(body.fullName).trim();
-    const clientEmail = isPortalUpload ? (body.email || 'client@thepatientshield.com') : String(body.email).trim();
+    const clientEmail = isPortalUpload ? (body.email || 'client@argubill.com') : String(body.email).trim();
     const hospitalName = isPortalUpload ? (body.hospitalName || 'Target Hospital') : String(body.hospitalName).trim();
     const phone = isPortalUpload ? (body.phone || 'Unspecified') : String(body.phone).trim();
     const fileName = body.fileName || 'Itemized Bill Uploaded';
@@ -160,7 +160,7 @@ export default async function handler(req, res) {
     const aiStatus = isPortalUpload ? 'skipped_portal_upload' : (aiErrorLog ? 'failed' : 'completed');
     const portalToken = crypto.randomUUID();
     const leadId = Date.now().toString();
-    const securePortalUrl = `https://www.thepatientshield.com/portal.html?id=${leadId}&t=${portalToken}`;
+    const securePortalUrl = `https://www.argubill.com/portal.html?id=${leadId}&t=${portalToken}`;
 
     let missingHtml = '';
     if (missingInfoRequests.length > 0) {
@@ -232,7 +232,7 @@ export default async function handler(req, res) {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${resendApiKey}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            from: 'The Patient Shield <audit@thepatientshield.com>',
+            from: 'ArguBill <audit@argubill.com>',
             to: [clientEmail],
             subject: 'We Have Received Your Medical Bill - Action Required for Missing Documents',
             html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;"><h2 style="color: #0f172a;">Your Medical Bill Has Been Received</h2><p>Hello ${actualPatientName},</p><p>We have securely received your uploaded statement (<strong>${fileName}</strong>) for <strong>${actualFacilityName}</strong>.</p><p>Our preliminary audit is underway. To ensure a fully accurate, compliant cross-check of your billing statement, we noticed that certain supporting documents were not provided:</p>${missingHtml}<p>Please upload these missing documents through your secure portal link below so our team and AI can complete a thorough audit:</p><div style="text-align: center; margin: 30px 0;"><a href="${securePortalUrl}" style="background-color: #2563eb; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Access Secure Portal & Upload Missing Files</a></div><p style="font-size: 12px; color: #64748b; margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 15px;">This communication is handled securely in compliance with HIPAA guidelines.</p></div>`
@@ -247,17 +247,17 @@ export default async function handler(req, res) {
     }
 
     // Send Notification Alert to Clinical Nurse Team
-    const adminEmail = process.env.ADMIN_EMAIL || 'nurse@thepatientshield.com';
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@argubill.com';
     if (resendApiKey) {
       try {
         const adminRes = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + resendApiKey },
           body: JSON.stringify({
-            from: 'PatientShield Alerts <alerts@thepatientshield.com>',
+            from: 'ArguBill Alerts <alerts@argubill.com>',
             to: [adminEmail],
             subject: `🚨 New Bill Audit: ${actualFacilityName} (${extractedBillAmount})`,
-            html: `<h2>New Catastrophic Bill Intake Ready for Review</h2><p><strong>Patient/Account:</strong> ${actualPatientName}</p><p><strong>Hospital Facility:</strong> ${actualFacilityName}</p><p><strong>Gross Bill Total:</strong> ${extractedBillAmount}</p><p><strong>Estimated Savings:</strong> ${estimatedSavingsValue}</p><p><a href="https://www.thepatientshield.com/admin.html" target="_blank">Log into Admin Dashboard to Review Full Audit & Approve Email</a></p>`
+            html: `<h2>New Catastrophic Bill Intake Ready for Review</h2><p><strong>Patient/Account:</strong> ${actualPatientName}</p><p><strong>Hospital Facility:</strong> ${actualFacilityName}</p><p><strong>Gross Bill Total:</strong> ${extractedBillAmount}</p><p><strong>Estimated Savings:</strong> ${estimatedSavingsValue}</p><p><a href="https://www.argubill.com/admin.html" target="_blank">Log into Admin Dashboard to Review Full Audit & Approve Email</a></p>`
           })
         });
         adminAlertStatus = adminRes.ok ? 'sent' : 'failed';
