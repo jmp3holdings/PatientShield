@@ -68,7 +68,7 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        from: 'The Patient Shield <audit@thepatientshield.com>',
+        from: 'ArguBill <audit@argubill.com>',
         to: [prepared.recipient],
         subject: prepared.subject,
         html: prepared.bodyHtml
