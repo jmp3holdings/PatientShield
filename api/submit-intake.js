@@ -27,7 +27,7 @@ export default async function handler(req, res) {
       if (!body.phone || !String(body.phone).trim()) {
         return res.status(400).json({ status: 'error', message: 'Phone number is required.' });
       }
-      if (body.agreementAccepted !== true) { return res.status(400).json({ status: 'error', message: 'The service agreement and authorization must be accepted so we can work on your bill.' }); } if (!body.hospitalName || !String(body.hospitalName).trim()) {
+      if (body.agreementAccepted !== true) { return res.status(400).json({ status: 'error', message: 'The service agreement and authorization must be accepted so we can work on your bill.' }); } if (body.hipaaAuthAccepted !== true) { return res.status(400).json({ status: 'error', message: 'The HIPAA Authorization must be accepted so the hospital can share your records with us.' }); } if (body.accessDirectiveAccepted !== true) { return res.status(400).json({ status: 'error', message: 'The Right-of-Access Directive must be accepted so the hospital can send us your records.' }); } if (!body.hospitalName || !String(body.hospitalName).trim()) {
         return res.status(400).json({ status: 'error', message: 'Hospital / facility name is required.' });
       }
     }
@@ -196,7 +196,7 @@ export default async function handler(req, res) {
       aiStatus,
       confirmationEmailStatus: 'pending',
       adminAlertStatus: 'pending',
-      approvalStatus: 'pending_admin_approval', agreement: isPortalUpload ? null : { accepted: true, version: body.agreementVersion || 'unknown', acceptedAt: new Date().toISOString() }, caseState: isPortalUpload ? 'portal_upload' : (missingInfoRequests.length > 0 ? 'awaiting_docs' : 'ready_for_dispute'), disputeSentAt: null, outcome: null, feeInvoice: null,
+      approvalStatus: 'pending_admin_approval', agreement: isPortalUpload ? null : { accepted: true, version: '2026-11-12-v3', text: AGREEMENT_TEXT_V3, acceptedAt: new Date().toISOString() }, hipaaAuthorization: isPortalUpload ? null : { accepted: true, version: '2026-11-12-v1', text: HIPAA_AUTH_TEXT_V1, acceptedAt: new Date().toISOString() }, accessDirective: isPortalUpload ? null : { accepted: true, version: '2026-11-12-v1', text: ACCESS_DIRECTIVE_TEXT_V1, acceptedAt: new Date().toISOString() }, caseState: isPortalUpload ? 'portal_upload' : (missingInfoRequests.length > 0 ? 'awaiting_docs' : 'ready_for_dispute'), disputeSentAt: null, outcome: null, feeInvoice: null,
       preparedEmailContent: { recipient: clientEmail, subject: emailSubject, bodyHtml: emailBodyHtml },
       submittedAt: new Date().toISOString()
     };
