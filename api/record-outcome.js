@@ -21,7 +21,7 @@ export default async function handler(req, res) {
     const auth = await checkAdminAuth(req);
     if (!auth.ok) {
       return res.status(401).json({ status: 'error', message: 'Unauthorized.' });
-      }
+  }
 
     const { leadId, reducedBalance, confirmationRef } = req.body || {};
     if (!leadId) {
