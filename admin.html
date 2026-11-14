@@ -11,12 +11,21 @@
     <!-- Login Screen -->
     <div id="loginScreen" class="max-w-md mx-auto mt-24 bg-white p-8 rounded-2xl shadow-xl border border-slate-200">
         <h2 class="text-2xl font-bold mb-2 text-slate-800">Admin Portal Login</h2>
-        <p class="text-sm text-slate-500 mb-6">Enter your secure password to access client audit records.</p>
-        
+        <p class="text-sm text-slate-500 mb-6">Sign in with your named admin account and authenticator code.</p>
+
         <form id="loginForm" class="space-y-4">
-            <input type="password" id="adminPassword" placeholder="Admin Password" required class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:outline-none">
+            <div id="namedFields" class="space-y-4">
+                <input type="text" id="adminUsername" placeholder="Username (e.g. admin@argubill.com)" autocomplete="username" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:outline-none">
+            </div>
+            <input type="password" id="adminPassword" placeholder="Password" autocomplete="current-password" required class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:outline-none">
+            <div id="codeRow" style="display: none;">
+                <input type="text" id="adminCode" placeholder="6-digit authenticator code (or recovery code)" inputmode="numeric" autocomplete="one-time-code" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:outline-none">
+            </div>
             <button type="submit" id="loginBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg transition cursor-pointer">Login to Dashboard</button>
         </form>
+        <div class="mt-3 text-center">
+            <button type="button" id="legacyToggle" onclick="toggleLegacy()" class="text-xs text-slate-500 hover:underline font-semibold cursor-pointer">Use the legacy shared password instead</button>
+        </div>
 
         <div class="mt-4 text-center">
             <button type="button" onclick="forgotPassword()" class="text-xs text-blue-600 hover:underline font-semibold cursor-pointer">Forgot Password? The owner resets it in the Vercel environment settings</button>
@@ -44,9 +53,20 @@
             return { 'Authorization': 'Bearer ' + (sessionStorage.getItem('adminPassword') || '') };
         }
 
+        let legacyMode = false;
+        function toggleLegacy() {
+            legacyMode = !legacyMode;
+            document.getElementById('namedFields').style.display = legacyMode ? 'none' : 'block';
+            document.getElementById('codeRow').style.display = 'none';
+            document.getElementById('legacyToggle').textContent = legacyMode ? 'Use my named account instead' : 'Use the legacy shared password instead';
+            document.getElementById('msg').textContent = legacyMode ? 'Legacy mode: enter the shared admin password.' : '';
+        }
+
         document.getElementById('loginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const password = document.getElementById('adminPassword').value;
+            const username = legacyMode ? '' : document.getElementById('adminUsername').value.trim();
+            const code = document.getElementById('adminCode').value.trim();
             const btn = document.getElementById('loginBtn');
             const msg = document.getElementById('msg');
 
@@ -57,18 +77,22 @@
                 const res = await fetch('/api/admin-login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ password })
+                    body: JSON.stringify(legacyMode ? { password } : { username, password, code: code || undefined })
                 });
                 const data = await res.json();
 
                 if (data.status === 'success') {
-                    sessionStorage.setItem('adminPassword', password);
+                    sessionStorage.setItem('adminPassword', data.token);
                     document.getElementById('loginScreen').style.display = 'none';
                     const dash = document.getElementById('dashboard');
                     dash.style.display = 'block';
                     dash.classList.remove('hidden');
                     loadLeads();
                 } else {
+                    if (data.codeRequired) {
+                        document.getElementById('codeRow').style.display = 'block';
+                        document.getElementById('adminCode').focus();
+                    }
                     msg.textContent = data.message || 'Incorrect password.';
                     msg.className = 'text-xs text-center mt-3 text-red-600 font-semibold';
                     btn.textContent = 'Login to Dashboard';
@@ -82,7 +106,7 @@
 
         function forgotPassword() {
             const msg = document.getElementById('msg');
-            msg.textContent = 'The admin password is reset by the owner in the Vercel project environment settings.';
+            msg.textContent = 'Named accounts: enter one of your recovery codes in the code field. The legacy shared password is reset by the owner in the Vercel environment settings.';
             msg.className = 'text-xs text-center mt-3 text-slate-600 font-semibold';
         }
 
