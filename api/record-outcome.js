@@ -1,3 +1,5 @@
+import { checkAdminAuth } from './_admin-auth.js';
+
 export const maxDuration = 60;
 
 // POST /api/record-outcome — admin only (Bearer ADMIN_PASSWORD, same gate as
@@ -16,15 +18,10 @@ export default async function handler(req, res) {
   }
 
   try {
-    const adminPass = process.env.ADMIN_PASSWORD;
-    if (!adminPass) {
-      return res.status(500).json({ status: 'error', message: 'Admin password is not configured.' });
-    }
-    const authHeader = req.headers.authorization || '';
-    const provided = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
-    if (!provided || provided !== adminPass) {
+    const auth = await checkAdminAuth(req);
+    if (!auth.ok) {
       return res.status(401).json({ status: 'error', message: 'Unauthorized.' });
-    }
+      }
 
     const { leadId, reducedBalance, confirmationRef } = req.body || {};
     if (!leadId) {
