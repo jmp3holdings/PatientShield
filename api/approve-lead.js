@@ -1,3 +1,5 @@
+import { checkAdminAuth } from './_admin-auth.js';
+
 export const maxDuration = 60;
 
 export default async function handler(req, res) {
@@ -10,13 +12,8 @@ export default async function handler(req, res) {
   try {
     // Gate this endpoint: the caller must send the admin password as an
     // Authorization header. Fail closed when ADMIN_PASSWORD is unset.
-    const adminPass = process.env.ADMIN_PASSWORD;
-    if (!adminPass) {
-      return res.status(500).json({ status: 'error', message: 'Admin password is not configured.' });
-    }
-    const authHeader = req.headers.authorization || '';
-    const provided = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
-    if (!provided || provided !== adminPass) {
+    const auth = await checkAdminAuth(req);
+    if (!auth.ok) {
       return res.status(401).json({ status: 'error', message: 'Unauthorized.' });
     }
 
