@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ArguBill Admin — Enroll Named Account</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 text-slate-900 font-sans antialiased">
+
+    <div class="max-w-md mx-auto mt-24 bg-white p-8 rounded-2xl shadow-xl border border-slate-200">
+        <h2 class="text-2xl font-bold mb-2 text-slate-800">Enroll a Named Admin Account</h2>
+        <p class="text-sm text-slate-500 mb-6">One-time setup. You will need the current shared admin password and an authenticator app (Google Authenticator, Apple Passwords, or similar).</p>
+
+        <form id="enrollForm" class="space-y-4">
+            <input type="password" id="currentPassword" placeholder="Current shared admin password" required class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:outline-none">
+            <input type="text" id="username" placeholder="Username (e.g. admin@argubill.com)" required class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:outline-none">
+            <input type="password" id="newPassword" placeholder="New password (12+ characters)" required class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:outline-none">
+            <button type="submit" id="startBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg transition cursor-pointer">Start Enrollment</button>
+        </form>
+
+        <div id="keyStep" style="display: none;" class="mt-6 space-y-4">
+            <div class="bg-amber-50 border border-amber-300 rounded-lg p-4">
+                <p class="text-sm font-semibold text-amber-800 mb-2">Add this setup key to your authenticator app (manual entry):</p>
+                <p id="secretOut" class="font-mono text-sm break-all text-slate-800"></p>
+                <p class="text-xs text-slate-500 mt-2">Account name: your username. Issuer: ArguBill. Or open this link on the device with the app: <a id="otpauthLink" href="#" class="text-blue-600 underline">otpauth link</a></p>
+            </div>
+            <form id="confirmForm" class="space-y-4">
+                <input type="text" id="code" placeholder="6-digit code from the app" inputmode="numeric" required class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:outline-none">
+                <button type="submit" id="confirmBtn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 rounded-lg transition cursor-pointer">Confirm &amp; Activate</button>
+            </form>
+        </div>
+
+        <div id="codesStep" style="display: none;" class="mt-6">
+            <div class="bg-red-50 border border-red-300 rounded-lg p-4">
+                <p class="text-sm font-bold text-red-700 mb-2">SAVE THESE RECOVERY CODES NOW — shown only once.</p>
+                <p class="text-xs text-slate-600 mb-3">Each code signs you in once if you lose your authenticator. Store them somewhere safe (password manager or printed).</p>
+                <ul id="codesOut" class="font-mono text-sm text-slate-800 space-y-1"></ul>
+            </div>
+            <p class="text-sm text-slate-600 mt-4">Done. Sign in at <a href="/admin.html" class="text-blue-600 underline font-semibold">admin.html</a> with your username, new password, and a code from your app.</p>
+        </div>
+
+        <p id="msg" class="text-xs text-center mt-3 text-slate-500"></p>
+    </div>
+
+    <script>
+        async function post(body) {
+            const res = await fetch('/api/admin-enroll', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            return res.json();
+        }
+        function showMsg(text, ok) {
+            const msg = document.getElementById('msg');
+            msg.textContent = text;
+            msg.className = 'text-xs text-center mt-3 font-semibold ' + (ok ? 'text-green-600' : 'text-red-600');
+        }
+
+        document.getElementById('enrollForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('startBtn');
+            btn.textContent = 'Working...';
+            try {
+                const data = await post({
+                    action: 'start',
+                    currentPassword: document.getElementById('currentPassword').value,
+                    username: document.getElementById('username').value.trim(),
+                    newPassword: document.getElementById('newPassword').value
+                });
+                if (data.status === 'success') {
+                    document.getElementById('secretOut').textContent = data.totpSecret;
+                    const link = document.getElementById('otpauthLink');
+                    link.href = data.otpauthUrl;
+                    document.getElementById('keyStep').style.display = 'block';
+                    showMsg('Setup key ready. Add it to your authenticator, then confirm with a live code.', true);
+                } else {
+                    showMsg(data.message || 'Enrollment failed.', false);
+                }
+            } catch (err) { showMsg('Connection error.', false); }
+            btn.textContent = 'Start Enrollment';
+        });
+
+        document.getElementById('confirmForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('confirmBtn');
+            btn.textContent = 'Verifying...';
+            try {
+                const data = await post({
+                    action: 'confirm',
+                    currentPassword: document.getElementById('currentPassword').value,
+                    username: document.getElementById('username').value.trim(),
+                    code: document.getElementById('code').value.trim()
+                });
+                if (data.status === 'success') {
+                    const ul = document.getElementById('codesOut');
+                    ul.innerHTML = '';
+                    (data.recoveryCodes || []).forEach(function(c) {
+                        const li = document.createElement('li');
+                        li.textContent = c;
+                        ul.appendChild(li);
+                    });
+                    document.getElementById('codesStep').style.display = 'block';
+                    document.getElementById('keyStep').style.display = 'none';
+                    showMsg('Account active. Save the recovery codes before leaving this page.', true);
+                } else {
+                    showMsg(data.message || 'Confirmation failed.', false);
+                }
+            } catch (err) { showMsg('Connection error.', false); }
+            btn.textContent = 'Confirm & Activate';
+        });
+    </script>
+</body>
+</html>
